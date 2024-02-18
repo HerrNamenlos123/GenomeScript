@@ -1,3 +1,6 @@
 [submodule "gothic3sdk"]
 	path = gothic3sdk
-	url = https://github.com/georgeto/gothic3sdk
+	url = https://github.com/HerrNamenlos123/gothic3sdk.git
+[submodule "spdlog"]
+	path = spdlog
+	url = https://github.com/gabime/spdlog.git
