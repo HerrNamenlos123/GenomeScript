@@ -5,6 +5,8 @@
 namespace GenomeScript {
 
 void dllattach() {
+    CreateConsole();
+
     log::info("DLL attached");
 
     log::info("Attaching detouring ...");
@@ -14,9 +16,13 @@ void dllattach() {
     //detour(false);
     DetourTransactionCommit();
     log::info("Attaching detouring ... Done");
+
+    ScriptMaster::get().loadAllScripts();
 }
 
 void dlldetach() {
+    ScriptMaster::get().unloadAllScripts();
+
     log::info("Detaching detouring ...");
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
@@ -26,6 +32,9 @@ void dlldetach() {
 }
 
 } // namespace GenomeScript
+
+GS_API void dummy() {   // Needed to make DLL linkable
+}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
     switch (ul_reason_for_call) {

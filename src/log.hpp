@@ -50,7 +50,9 @@ private:
     log() = default;
 
     static void init() {
-        m_logger = spdlog::basic_logger_mt("G3", "logs/GenomeScript-last.txt", true);
+        if (!m_logger) {
+            m_logger = spdlog::basic_logger_mt("G3", "logs/GenomeScript-last.txt", true);
+        }
     }
 
     inline static bool m_consoleEnabled = false;
