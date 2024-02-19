@@ -1,7 +1,8 @@
 #pragma once
 
-#include "common.hpp"
+#include "pch.hpp"
 
+// Lua
 extern "C" {
 #include <lauxlib.h>
 #include <lua.h>
@@ -11,8 +12,13 @@ extern "C" {
 
 namespace GenomeScript {
 
+constexpr auto HOTRELOAD_INTERVAL_S = 1;
+
 std::wstring widen(const std::string& str);
 std::string narrow(const std::wstring& str);
+double time();
+
+enum class HookAction { None, PreventDefaultAsSuccess, PreventDefaultAsFailure, PreventDefaultWithValue };
 
 class ScriptMaster {
 public:
@@ -22,22 +28,71 @@ public:
     }
 
     struct Script {
-        std::string filepath;
+        std::filesystem::path filepath;
         std::string moduleName;
         lua_State* luaState {};
+        HookAction hookAction;
+        std::filesystem::file_time_type lastWriteTime;
         std::unordered_map<std::string, luabridge::LuaRef> functionPool;
     };
 
     void loadAllScripts();
     void unloadAllScripts();
     void loadScript(const std::string& filename, const std::string& moduleName);
+    void loadLuaFile(Script& script);
     bool unloadScript(const std::string& moduleName);
 
-    bool callFunctionInAllScripts(const std::string& function);
+    template<typename... TArgs> 
+    std::pair<HookAction, std::optional<luabridge::LuaRef>> callFunctionInAllScripts(const std::string& function, TArgs... args) {
+        //log::trace("Calling lua function {} in all scripts", function);
+        HookAction hookAction = HookAction::None;
+        std::optional<luabridge::LuaRef> result;
+        for (auto& script : m_scripts) {
+            script.hookAction = HookAction::None;
+            std::optional<luabridge::LuaRef> luaRef = callLuaFunction(script, function, args...);
+            switch (script.hookAction) {
+            case HookAction::None:
+                break;
+            case HookAction::PreventDefaultAsSuccess:
+                hookAction = script.hookAction;
+                log::trace("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
+                break;
+            case HookAction::PreventDefaultAsFailure:
+                hookAction = script.hookAction;
+                log::trace("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
+                break;
+            case HookAction::PreventDefaultWithValue:
+                hookAction = script.hookAction;
+                result = luaRef;
+                log::trace("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
+                break;
+            }
+        }
+        return { hookAction, result };
+    }
+
+    template <typename... TArgs> 
+    std::optional<luabridge::LuaRef> callLuaFunction(Script& script, const std::string& function, TArgs... args) {
+
+        luabridge::LuaRef const func = luabridge::getGlobal(script.luaState, function.c_str());
+        if (!func.isFunction()) {
+            return {};
+        }
+
+        luabridge::LuaResult const result = func(args...);
+        if (!result) {
+            log::error("{}: {}() returned an error: {}", script.filepath.u8string(), function, result.errorMessage());
+        }
+
+        if (result.size() > 0) {
+            return result[0];
+        }
+        return {};
+    }
 
     void ExecLuaCode(const Script& script, const std::string& code);
-    bool callLuaFunction(Script& script, const std::string& function);
     void defineLuaTypes(const Script& script);
+    void updateScriptHotreload();
 
     ScriptMaster(const ScriptMaster&) = delete;
     ScriptMaster(ScriptMaster&&) = delete;
@@ -53,5 +108,7 @@ private:
     inline static const std::string m_luaOnDetachFunction = "OnDetach";
     std::vector<Script> m_scripts;
 };
+
+void updateScriptHotreload();
 
 } // namespace GenomeScript

@@ -23,3 +23,12 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <codecvt>
+#include <chrono>
+
+// gothic3sdk
+#include "Engine.h"
+#include "Script.h"
+#include "Game.h"

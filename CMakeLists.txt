@@ -10,7 +10,8 @@ set(GOTHIC3_DIR "C:/Program Files (x86)/Steam/steamapps/common/Gothic 3")
 
 # All source and header files
 set(SOURCES
-	src/common.hpp
+	src/hooks.cpp
+	src/hooks.hpp
 	src/log.cpp
 	src/log.hpp
 	src/main.cpp
@@ -22,6 +23,7 @@ set(SOURCES
 add_library(GenomeScript SHARED ${SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
 target_compile_options(${PROJECT_NAME} PUBLIC /Gz)
+target_precompile_headers(${PROJECT_NAME} PUBLIC "src/pch.hpp")
 
 # How to group the files in the Solution Explorer
 source_group(TREE "${CMAKE_CURRENT_LIST_DIR}/src" PREFIX "src" FILES ${SOURCES})

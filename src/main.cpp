@@ -1,6 +1,7 @@
 
 #include "system.hpp"
 #include "log.hpp"
+#include "hooks.hpp"
 
 namespace GenomeScript {
 
@@ -8,26 +9,30 @@ void dllattach() {
     log::enableDevMode();
     log::info("DLL attached");
 
-    log::info("Attaching detouring ...");
+    log::debug("Attaching detouring ...");
     DetourRestoreAfterWith();
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    //detour(false);
+    detour(false);
     DetourTransactionCommit();
-    log::info("Attaching detouring ... Done");
+    log::debug("Attaching detouring ... Done");
 
+    log::debug("Loading all script modules ...");
     ScriptMaster::get().loadAllScripts();
+    log::debug("Loading all script modules ... Done");
 }
 
 void dlldetach() {
+    log::debug("Unloading all script modules ...");
     ScriptMaster::get().unloadAllScripts();
+    log::debug("Unloading all script modules ... Done");
 
-    log::info("Detaching detouring ...");
+    log::debug("Detaching detouring ...");
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    //detour(true);
+    detour(true);
     DetourTransactionCommit();
-    log::info("Detaching detouring ... Done");
+    log::debug("Detaching detouring ... Done");
 }
 
 } // namespace GenomeScript

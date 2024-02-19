@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.hpp"
+#include "pch.hpp"
 
 struct lua_State;
 
@@ -13,6 +13,7 @@ public:
         if (m_devModeEnabled) {
             init();
             spdlog::trace(args...);
+            m_logger->trace(args...);
         }
     }
 
@@ -20,6 +21,7 @@ public:
         if (m_devModeEnabled) {
             init();
             spdlog::info(args...);
+            m_logger->info(args...);
         }
     }
 
@@ -27,6 +29,7 @@ public:
         if (m_devModeEnabled) {
             init();
             spdlog::debug(args...);
+            m_logger->debug(args...);
         }
     }
 
@@ -34,6 +37,7 @@ public:
         if (m_devModeEnabled) {
             init();
             spdlog::warn(args...);
+            m_logger->warn(args...);
         }
     }
 
@@ -41,6 +45,7 @@ public:
         if (m_devModeEnabled) {
             init();
             spdlog::error(args...);
+            m_logger->error(args...);
         }
     }
 
@@ -54,7 +59,7 @@ public:
         m_devModeEnabled = true;
     }
 
-    static void defineLuaTypes(lua_State* state, const std::string& moduleName);
+    static void defineLuaTypes(lua_State* state, std::string moduleName);
 
 private:
     log() = default;
@@ -62,6 +67,8 @@ private:
     static void init() {
         if (!m_logger) {
             m_logger = spdlog::basic_logger_mt("G3", "logs/GenomeScript-last.txt", true);
+            m_logger->set_level(spdlog::level::trace);
+            spdlog::set_level(spdlog::level::trace);
         }
     }
 
