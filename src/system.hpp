@@ -55,16 +55,16 @@ public:
                 break;
             case HookAction::PreventDefaultAsSuccess:
                 hookAction = script.hookAction;
-                log::trace("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
+                //log::trace("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
                 break;
             case HookAction::PreventDefaultAsFailure:
                 hookAction = script.hookAction;
-                log::trace("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
+                //log::trace("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
                 break;
             case HookAction::PreventDefaultWithValue:
                 hookAction = script.hookAction;
                 result = luaRef;
-                log::trace("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
+                //log::trace("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
                 break;
             }
         }

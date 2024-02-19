@@ -12,6 +12,12 @@ auto constexpr MAX_FUNCTIONCALL_MILLISECONDS = 50;
         return (this->*function##_funcptr)(args...);                                                                  \
     }
 
+#define DETOUR_DECLARE_STATIC_MEMBER(function, dll, symbol)                                                           \
+    inline static auto function##_funcptr = getDllFunc<decltype(&function)>(dll, symbol);                             \
+    template <typename... TArgs> static auto function##_Base(TArgs... args) {                                         \
+        return function##_funcptr(args...);                                                                           \
+    }
+
 #define DETOUR_EXTERN_MEMBER(classname, function)                                                                     \
     auto classname##_##function##_tmp = &classname::function;                                                         \
     Detour(detach, &(PVOID&)classname::function##_funcptr, *(PBYTE*)&classname##_##function##_tmp);
@@ -80,7 +86,33 @@ auto constexpr MAX_FUNCTIONCALL_MILLISECONDS = 50;
     HOOK_ACTION_RET(classname, funcname, returntype, success, failure)                                                \
     HOOK_ACTION_RET_VALUE(classname, funcname, returntype, success, failure);
 
-#define HOOK_ACTION_BOOL(classname, funcname, ...) HOOK_ACTION(classname, funcname, bool, true, false, __VA_ARGS__)
+#define HOOK_ACTION_BOOL(classname, funcname, ...)                                                                    \
+    HOOK_ACTION(classname, funcname, bool, true, false, __VA_ARGS__)
+
+#define HOOK_STATIC_ACTION_VOID(classname, funcname, ...)                                                             \
+    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, __VA_ARGS__);  \
+    HOOK_STATIC_ACTION_RET(classname, funcname, returntype, , );
+
+#define HOOK_STATIC_ACTION(classname, funcname, returntype, success, failure, ...)                                    \
+    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, __VA_ARGS__);  \
+    HOOK_ACTION_RET(classname, funcname, returntype, success, failure)                                         \
+    HOOK_ACTION_RET_VALUE(classname, funcname, returntype, success, failure);
+
+#define HOOK_STATIC_ACTION_BOOL(classname, funcname, ...)                                                             \
+    HOOK_STATIC_ACTION(classname, funcname, bool, true, false, __VA_ARGS__)
+
+#define DEFINE_LUA_ENUM(enumType, defaultEnumValue)                                                                   \
+    luabridge::getGlobalNamespace(state)                                                                              \
+        .beginClass<enumType>(#enumType)                                                                              \
+        .addConstructor([](void* ptr, int value) {                                                                    \
+            enumType* v = reinterpret_cast<enumType*>(new (ptr) int);                                                 \
+            *v = magic_enum::enum_cast<enumType>(value).value_or(defaultEnumValue);                                   \
+            return v;                                                                                                 \
+        })                                                                                                            \
+        .endClass();                                                                                                  \
+    /*for (auto [enumValue, enumKey] : magic_enum::enum_entries<enumType>()) {                                          \
+        luabridge::getGlobalNamespace(state).addVariable(enumKey.data(), enumValue);                                  \
+    }*/
 
 namespace GenomeScript {
     

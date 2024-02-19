@@ -3,6 +3,10 @@
 #include "log.hpp"
 #include "system.hpp"
 
+#define MAGIC_ENUM_RANGE_MIN 0
+#define MAGIC_ENUM_RANGE_MAX 1024
+#include "magic_enum/magic_enum.hpp"
+
 namespace GenomeScript {
 
 class MusicHook {
@@ -88,22 +92,95 @@ public:
     DETOUR_DECLARE_MEMBER(Run, "Engine.dll", "?Run@eCApplication@@QAE?AW4bEResult@@XZ");
     DETOUR_DECLARE_MEMBER(PlayVideo, "Engine.dll", "?PlayVideo@eCApplication@@QAEXABVbCString@@@Z");
     DETOUR_DECLARE_MEMBER(Process, "Engine.dll", "?Process@eCApplication@@QAEXXZ");
-    //DETOUR_DECLARE_MEMBER(OnRun, "Engine.dll", "?OnRun@eCApplication@@UAEXXZ");
+    // DETOUR_DECLARE_MEMBER(OnRun, "Engine.dll", "?OnRun@eCApplication@@UAEXXZ");
 
     static void detour(bool detach) {
         DETOUR_EXTERN_MEMBER(eCApplicationHook, Run);
         DETOUR_EXTERN_MEMBER(eCApplicationHook, PlayVideo);
         DETOUR_EXTERN_MEMBER(eCApplicationHook, Process);
-        //DETOUR_EXTERN_MEMBER(eCApplicationHook, OnRun);
+        // DETOUR_EXTERN_MEMBER(eCApplicationHook, OnRun);
     }
 
     static void defineLuaTypes(lua_State* state) {
         luabridge::getGlobalNamespace(state)
             .beginClass<eCApplicationHook>("eCApplication")
+            .addFunction("Run", &eCApplicationHook::Run_Base<>)
             .addFunction("PlayVideo", &eCApplicationHook::PlayVideo_Base<const bCString&>)
-            /*.ADD_FUNCTION_RETURN(Run)
-            .ADD_FUNCTION_VOID_1P(PlayVideo, const bCString&)
-            .ADD_FUNCTION_VOID(Run)*/
+            .addFunction("Process", &eCApplicationHook::Process_Base<>)
+            .endClass();
+    }
+};
+
+struct sAICombatMoveInstr_Args {
+    eCEntity* SelfEntity;
+    eCEntity* TargetEntity;
+    gEAction Action;
+    bCString PhaseName;
+    GEFloat AniSpeedScale;
+
+    sAICombatMoveInstr_Args(eCEntity* a_SelfEntity,
+                            eCEntity* a_TargetEntity,
+                            gEAction a_Action,
+                            bCString a_Phase,
+                            GEFloat a_AniSpeedScale = 1.0f)
+        : SelfEntity(a_SelfEntity)
+        , TargetEntity(a_TargetEntity)
+        , Action(a_Action)
+        , PhaseName(a_Phase)
+        , AniSpeedScale(a_AniSpeedScale) {
+    }
+};
+
+class gCScriptProcessingUnitHook {
+public:
+    void AISetState(bCString str) {
+        log::info("AISetState");
+        HOOK_ACTION_VOID("gCScriptProcessingUnit", AISetState, str);
+        AISetState_Base(str);
+    }
+
+    void AISetTask(bCString a_strTaskName, GEBool a_bJustSetIfCaughtTask) {
+        // This sets a task that any NPC in the world is doing. For example:
+        // ZS_HangAround or PS_Melee or PS_Interact or PS_Interact_End.
+        // But nothing inbetween, the animation itself is done elsewhere.
+        //log::info("AISetTask = {}", a_strTaskName);
+        AISetTask_Base(a_strTaskName, a_bJustSetIfCaughtTask);
+    }
+
+    static GEBool GE_STDCALL sAICombatMoveInstr(GELPVoid a_pArgs, gCScriptProcessingUnit* a_pSPU, GEBool a_bFullStop) {
+        auto args = reinterpret_cast<sAICombatMoveInstr_Args*>(a_pArgs);
+        HOOK_STATIC_ACTION_BOOL("gCScriptProcessingUnit", sAICombatMoveInstr, args, a_pSPU, a_bFullStop);
+        return sAICombatMoveInstr_Base(a_pArgs, a_pSPU, a_bFullStop);
+    }
+
+    DETOUR_DECLARE_MEMBER(AISetState, "Game.dll", "?AISetState@gCScriptProcessingUnit@@QAEXVbCString@@@Z");
+    DETOUR_DECLARE_MEMBER(AISetTask, "Game.dll", "?AISetTask@gCScriptProcessingUnit@@QAEXVbCString@@_N@Z");
+    DETOUR_DECLARE_STATIC_MEMBER(sAICombatMoveInstr, "Game.dll", "?sAICombatMoveInstr@gCScriptProcessingUnit@@SG_NPAXPAV1@_N@Z");
+
+    static void detour(bool detach) {
+        DETOUR_EXTERN_MEMBER(gCScriptProcessingUnitHook, AISetState);
+        DETOUR_EXTERN_MEMBER(gCScriptProcessingUnitHook, AISetTask);
+        DETOUR_EXTERN_MEMBER(gCScriptProcessingUnitHook, sAICombatMoveInstr);
+    }
+
+    static void defineLuaTypes(lua_State* state) {
+        luabridge::getGlobalNamespace(state)
+            .beginClass<sAICombatMoveInstr_Args>("sAICombatMoveInstr_Args")
+            .addProperty("Action", &sAICombatMoveInstr_Args::Action)
+            .addProperty("PhaseName", &sAICombatMoveInstr_Args::PhaseName)
+            .addProperty("AniSpeedScale", &sAICombatMoveInstr_Args::AniSpeedScale)
+            .endClass();
+
+        luabridge::getGlobalNamespace(state)
+            .beginClass<gCScriptProcessingUnit>("gCScriptProcessingUnit")
+            .endClass();
+        
+        luabridge::getGlobalNamespace(state)
+            .beginClass<gCScriptProcessingUnitHook>("gCScriptProcessingUnit")
+            .addFunction("AISetState", &gCScriptProcessingUnitHook::AISetState_Base<bCString>)
+            .addFunction("AISetTask", &gCScriptProcessingUnitHook::AISetTask_Base<bCString, GEBool>)
+            .addStaticFunction("sAICombatMoveInstr",
+                &gCScriptProcessingUnitHook::sAICombatMoveInstr_Base<GELPVoid, gCScriptProcessingUnit*, GEBool>)
             .endClass();
     }
 };
@@ -121,6 +198,7 @@ void detour(bool detach) {
 
     MusicHook::detour(detach);
     eCApplicationHook::detour(detach);
+    gCScriptProcessingUnitHook::detour(detach);
 
     // DETOUR_EXTERN_MEMBER(eCVisualAnimation_PS, PlayMotion, "Engine.dll",
     // "?PlayMotion@eCVisualAnimation_PS@@QAEXW4eEMotionType@eCWrapper_emfx2Actor@@PAUeSMotionDesc@eCWrapper_emfx2Motion@@@Z");
@@ -160,6 +238,7 @@ void detour(bool detach) {
 }
 
 void defineLuaTypes(lua_State* state) {
+    
     luabridge::getGlobalNamespace(state)
         .beginClass<bCString>("bCString")
         .addConstructor([](void* ptr, const std::string& str) {
@@ -169,11 +248,17 @@ void defineLuaTypes(lua_State* state) {
         })
         .endClass();
 
+    DEFINE_LUA_ENUM(gEAction, gEAction_None);
+        
     luabridge::getGlobalNamespace(state)
-        .addFunction("String", [](const bCString& str) { return std::string(str.GetText()); });
+        .addFunction("String", [](const bCString& str) { return std::string(str.GetText()); })
+        .addFunction("String", [](gEAction action) { return std::string(magic_enum::enum_name(action)); })
+        .addFunction("Int", [](gEAction action) { return (int)action; })
+        .addFunction("reinterpret_voidptr", [](sAICombatMoveInstr_Args* args) { return reinterpret_cast<GELPVoid>(args); });
 
     MusicHook::defineLuaTypes(state);
     eCApplicationHook::defineLuaTypes(state);
+    gCScriptProcessingUnitHook::defineLuaTypes(state);
 }
 
 } // namespace GenomeScript
