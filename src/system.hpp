@@ -31,7 +31,6 @@ public:
         std::filesystem::path filepath;
         std::string moduleName;
         lua_State* luaState {};
-        HookAction hookAction;
         std::filesystem::file_time_type lastWriteTime;
         std::unordered_map<std::string, luabridge::LuaRef> functionPool;
     };
@@ -48,23 +47,28 @@ public:
         HookAction hookAction = HookAction::None;
         std::optional<luabridge::LuaRef> result;
         for (auto& script : m_scripts) {
-            script.hookAction = HookAction::None;
+            ExecLuaCode(script, "ClearPreventDefaultHook()");
             std::optional<luabridge::LuaRef> luaRef = callLuaFunction(script, function, args...);
-            switch (script.hookAction) {
+            luabridge::LuaRef hookActionRef = luabridge::getGlobal(script.luaState, "Hook")["action"];
+            if (!hookActionRef.isInstance<int>()) {
+                log::error("The value of HookAction.action is not an int");
+                continue;
+            }
+            switch (hookActionRef.cast<int>().value()) {
             case HookAction::None:
                 break;
             case HookAction::PreventDefaultAsSuccess:
-                hookAction = script.hookAction;
-                //log::trace("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
+                hookAction = HookAction::PreventDefaultAsSuccess;
+                //log::warn("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
                 break;
             case HookAction::PreventDefaultAsFailure:
-                hookAction = script.hookAction;
-                //log::trace("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
+                hookAction = HookAction::PreventDefaultAsFailure;
+                //log::warn("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
                 break;
             case HookAction::PreventDefaultWithValue:
-                hookAction = script.hookAction;
+                hookAction = HookAction::PreventDefaultWithValue;
                 result = luaRef;
-                //log::trace("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
+                //log::warn("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
                 break;
             }
         }
