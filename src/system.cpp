@@ -5,20 +5,7 @@
 #include <fstream>
 #include <codecvt>
 
-extern "C" {
-#include <lauxlib.h>
-#include <lua.h>
-#include <lualib.h>
-}
-#include <LuaBridge/LuaBridge.h>
-
 namespace GenomeScript {
-
-void CreateConsole() {
-    AllocConsole();
-    freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-    log::consoleEnabled();
-}
 
 std::wstring widen(const std::string& str) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -39,22 +26,21 @@ void ScriptMaster::loadAllScripts() {
 
     // We loop through all folders in the script directory
     using iter = std::filesystem::directory_iterator;
-    for (const auto& dirEntry : iter(scriptDirectory)) {
+    for (auto& dirEntry : iter(scriptDirectory)) {
         // In every folder, we call the main script
         const auto& mainFile = dirEntry / "main.lua";
-        loadScript(mainFile.u8string());
+        const auto moduleName = std::filesystem::path(dirEntry).filename();
+        loadScript(mainFile.u8string(), moduleName.u8string());
     }
 }
 
 void ScriptMaster::unloadAllScripts() {
     while (m_scripts.size() > 0) {
-        auto [path, state] = m_scripts.back();
-        callLuaFunction(state, m_luaOnDetachFunction);
-        m_scripts.pop_back();
+        unloadScript(m_scripts.back().filepath);
     }
 }
 
-void ScriptMaster::loadScript(const std::string& filename) {
+void ScriptMaster::loadScript(const std::string& filename, const std::string& moduleName) {
 
     std::ifstream file(widen(filename).c_str(), std::ios::in);
     if (file.fail()) {
@@ -62,22 +48,26 @@ void ScriptMaster::loadScript(const std::string& filename) {
         return;
     }
 
-    lua_State* state = luaL_newstate();
-    luaL_openlibs(state);
-    defineTypes(state);
+    Script script;
+    script.luaState = luaL_newstate();
+    script.filepath = filename;
+    script.moduleName = moduleName;
+    luaL_openlibs(script.luaState);
+    defineLuaTypes(script);
 
     std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    ExecLuaCode(state, code);
+    ExecLuaCode(script, code);
     
-    callLuaFunction(state, m_luaOnAttachFunction);
-    m_scripts.emplace_back(std::make_pair(filename, state));
+    callLuaFunction(script, m_luaOnAttachFunction);
+    m_scripts.emplace_back(script);
 }
 
-bool ScriptMaster::unloadScript(const std::string& filename) {
+bool ScriptMaster::unloadScript(const std::string& moduleName) {
     for (int i = 0; i < m_scripts.size(); i++) {
-        auto [path, state] = m_scripts[i];
-        if (path == filename) {
-            callLuaFunction(state, m_luaOnDetachFunction);
+        auto& script = m_scripts[i];
+        if (script.moduleName == moduleName) {
+            callLuaFunction(script, m_luaOnDetachFunction);
+            lua_close(script.luaState);
             m_scripts.erase(m_scripts.begin() + i);
             return true;
         }
@@ -86,44 +76,41 @@ bool ScriptMaster::unloadScript(const std::string& filename) {
 }
 
 bool ScriptMaster::callFunctionInAllScripts(const std::string& function) {
-    for (auto [path, state] : m_scripts) {
-        luabridge::LuaRef const func = luabridge::getGlobal(state, function.c_str());
-        if (!func.isFunction()) {
-            continue;
-        }
+    for (auto& script : m_scripts) {
+        callLuaFunction(script, function);
+    }
+    return true;
+}
 
-        luabridge::LuaResult const result = func();
-        if (!result) {
-            log::error("{}: {}() returned an error: {}", path, function, result.errorMessage());
+void ScriptMaster::ExecLuaCode(const Script& script, const std::string& code) {
+    if (luaL_dostring(script.luaState, code.c_str()) != 0) {
+        log::error("{}: {}", script.filepath, lua_tostring(script.luaState, -1));
+        lua_pop(script.luaState, 1);
+    }
+}
+
+bool ScriptMaster::callLuaFunction(Script& script, const std::string& function) {
+
+    if (script.functionPool.find(function) == script.functionPool.end()) {
+        // Function is not known yet
+        luabridge::LuaRef const func = luabridge::getGlobal(script.luaState, function.c_str());
+        if (!func.isFunction()) {
             return false;
         }
-    }
-    return true;
-}
-
-void ScriptMaster::ExecLuaCode(lua_State* luaState, const std::string& code) {
-    if (luaL_dostring(luaState, code.c_str()) != 0) {
-        log::error("{}", lua_tostring(luaState, -1));
-        lua_pop(luaState, 1);
-    }
-}
-
-bool ScriptMaster::callLuaFunction(lua_State* state, const std::string& function) {
-    luabridge::LuaRef const func = luabridge::getGlobal(state, function.c_str());
-    if (!func.isFunction()) {
-        return false;
+        script.functionPool.emplace(function, func);
     }
 
+    auto& func = script.functionPool.at(function);
     luabridge::LuaResult const result = func();
     if (!result) {
-        log::error("{}() returned an error: {}", function, result.errorMessage());
+        log::error("{}: {}() returned an error: {}", script.filepath, function, result.errorMessage());
         return false;
     }
     return true;
 }
 
-void ScriptMaster::defineTypes(lua_State* state) {
-    
+void ScriptMaster::defineLuaTypes(const Script& script) {
+    log::defineLuaTypes(script.luaState, script.moduleName);
 }
 
 } // namespace GenomeScript

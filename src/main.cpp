@@ -5,8 +5,7 @@
 namespace GenomeScript {
 
 void dllattach() {
-    CreateConsole();
-
+    log::enableDevMode();
     log::info("DLL attached");
 
     log::info("Attaching detouring ...");

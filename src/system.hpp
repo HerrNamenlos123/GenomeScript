@@ -2,12 +2,14 @@
 
 #include "common.hpp"
 
-struct lua_State;
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
+}
+#include <LuaBridge/LuaBridge.h>
 
 namespace GenomeScript {
-
-/// @brief Create a new console window and redirect stdout to it.
-void CreateConsole();
 
 std::wstring widen(const std::string& str);
 std::string narrow(const std::wstring& str);
@@ -19,16 +21,23 @@ public:
         return master;
     }
 
+    struct Script {
+        std::string filepath;
+        std::string moduleName;
+        lua_State* luaState {};
+        std::unordered_map<std::string, luabridge::LuaRef> functionPool;
+    };
+
     void loadAllScripts();
     void unloadAllScripts();
-    void loadScript(const std::string& filename);
-    bool unloadScript(const std::string& filename);
+    void loadScript(const std::string& filename, const std::string& moduleName);
+    bool unloadScript(const std::string& moduleName);
 
     bool callFunctionInAllScripts(const std::string& function);
 
-    void ExecLuaCode(lua_State* luaState, const std::string& code);
-    bool callLuaFunction(lua_State* state, const std::string& function);
-    void defineTypes(lua_State* state);
+    void ExecLuaCode(const Script& script, const std::string& code);
+    bool callLuaFunction(Script& script, const std::string& function);
+    void defineLuaTypes(const Script& script);
 
     ScriptMaster(const ScriptMaster&) = delete;
     ScriptMaster(ScriptMaster&&) = delete;
@@ -39,9 +48,10 @@ private:
     ScriptMaster() = default;
     ~ScriptMaster();
 
+    inline static bool m_devModeEnabled = false;
     inline static const std::string m_luaOnAttachFunction = "OnAttach";
     inline static const std::string m_luaOnDetachFunction = "OnDetach";
-    std::vector<std::pair<std::string, lua_State*>> m_scripts;
+    std::vector<Script> m_scripts;
 };
 
 } // namespace GenomeScript
