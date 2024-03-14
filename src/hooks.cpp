@@ -39,32 +39,32 @@ namespace GenomeScript {
 class MusicHook {
 public:
     bool TriggerExplore() {
-        HOOK_ACTION_BOOL("Music", TriggerExplore);
+        HOOK_ACTION_BOOL(Music, TriggerExplore);
         return TriggerExplore_Base();
     }
 
     bool TriggerFight() {
-        HOOK_ACTION_BOOL("Music", TriggerFight);
+        HOOK_ACTION_BOOL(Music, TriggerFight);
         return TriggerFight_Base();
     }
 
     bool TriggerRevolution() {
-        HOOK_ACTION_BOOL("Music", TriggerRevolution);
+        HOOK_ACTION_BOOL(Music, TriggerRevolution);
         return TriggerRevolution_Base();
     }
 
     bool TriggerShowdown() {
-        HOOK_ACTION_BOOL("Music", TriggerShowdown);
+        HOOK_ACTION_BOOL(Music, TriggerShowdown);
         return TriggerShowdown_Base();
     }
 
     bool TriggerSituation(const bCString& str) {
-        HOOK_ACTION_BOOL("Music", TriggerSituation, str);
+        HOOK_ACTION_BOOL(Music, TriggerSituation, str);
         return TriggerSituation_Base(str);
     }
 
     bool TriggerVictory() {
-        HOOK_ACTION_BOOL("Music", TriggerVictory);
+        HOOK_ACTION_BOOL(Music, TriggerVictory);
         return TriggerVictory_Base();
     }
 
@@ -100,18 +100,18 @@ public:
 class eCApplicationHook {
 public:
     bEResult Run() {
-        HOOK_ACTION("eCApplication", Run, bEResult, bEResult::bEResult_Ok, bEResult::bEResult_False);
+        HOOK_ACTION(eCApplication, Run, bEResult, bEResult::bEResult_Ok, bEResult::bEResult_False);
         return Run_Base();
     }
 
     void PlayVideo(const bCString& video) {
-        HOOK_ACTION_VOID("eCApplication", PlayVideo, video);
+        HOOK_ACTION_VOID(eCApplication, PlayVideo, video);
         PlayVideo_Base(video);
     }
 
     void Process() {
         updateScriptHotreload();
-        HOOK_ACTION_VOID("eCApplication", Process);
+        HOOK_ACTION_VOID(eCApplication, Process);
         Process_Base();
     }
     //GEBool IsPaused(GEBool);
@@ -162,7 +162,7 @@ class gCScriptProcessingUnitHook {
 public:
     void AISetState(bCString str) {
         log::info("AISetState");
-        HOOK_ACTION_VOID("gCScriptProcessingUnit", AISetState, str);
+        HOOK_ACTION_VOID(gCScriptProcessingUnit, AISetState, str);
         AISetState_Base(str);
     }
 
@@ -176,7 +176,7 @@ public:
 
     static GEBool GE_STDCALL sAICombatMoveInstr(GELPVoid a_pArgs, gCScriptProcessingUnit* a_pSPU, GEBool a_bFullStop) {
         auto args = reinterpret_cast<sAICombatMoveInstr_Args*>(a_pArgs);
-        HOOK_STATIC_ACTION_BOOL("gCScriptProcessingUnit", sAICombatMoveInstr, args, a_pSPU, a_bFullStop);
+        HOOK_STATIC_ACTION_BOOL(gCScriptProcessingUnit, sAICombatMoveInstr, args, a_pSPU, a_bFullStop);
         return sAICombatMoveInstr_Base(a_pArgs, a_pSPU, a_bFullStop);
     }
 
@@ -216,7 +216,7 @@ class eCWrapper_emfx2MotionHook {
 public:
     bEResult LoadMotion(eCArchiveFile& file) {
         log::error("LoadMotion");
-        HOOK_ACTION("eCWrapper_emfx2Motion", LoadMotion, bEResult, bEResult::bEResult_Ok, bEResult::bEResult_False, file);
+        HOOK_ACTION(eCWrapper_emfx2Motion, LoadMotion, bEResult, bEResult::bEResult_Ok, bEResult::bEResult_False, file);
         return LoadMotion_Base(file);
     }
 
@@ -237,7 +237,7 @@ public:
 class eCVisualAnimation_PSHook : public eCVisualAnimation_PS {
 public:
     void PlayMotion(eCWrapper_emfx2Actor::eEMotionType type, eCWrapper_emfx2Motion::eSMotionDesc* motion) {
-        HOOK_ACTION_VOID("eCVisualAnimation_PS", PlayMotion, type, motion);
+        HOOK_ACTION_VOID(eCVisualAnimation_PS, PlayMotion);
         PlayMotion_Base(type, motion);
     }
 
@@ -266,17 +266,10 @@ public:
 
 void detour(bool detach) {
 
-    /*DETOUR_EXTERN_MEMBER(eCVirtualFileHook, Open);
-    DETOUR_EXTERN_MEMBER(eCVisualAnimationLoDHook, Read);
-    DETOUR_EXTERN_MEMBER(eCVisualAnimation_PSHook, Read);
-    DETOUR_EXTERN_MEMBER(eCVisualAnimationFactoryHook, Read);
-    DETOUR_EXTERN_MEMBER(EntityHook, DoDamage);
-    DETOUR_EXTERN_MEMBER(EntityHook, GetDisplayName);*/
-
     MusicHook::detour(detach);
     eCApplicationHook::detour(detach);
     gCScriptProcessingUnitHook::detour(detach);
-    //eCVisualAnimation_PSHook::detour(detach);
+    eCVisualAnimation_PSHook::detour(detach);
     eCWrapper_emfx2MotionHook::detour(detach);
 
     // DETOUR_EXTERN_MEMBER(eCVisualAnimationLoD, Read, "Engine.dll", "?Read@eCVisualAnimationLoD@@UAE?AW4bEResult@@AAVbCIStream@@@Z"); 
@@ -344,7 +337,7 @@ void defineLuaTypes(lua_State* state) {
     MusicHook::defineLuaTypes(state);
     eCApplicationHook::defineLuaTypes(state);
     gCScriptProcessingUnitHook::defineLuaTypes(state);
-    //eCVisualAnimation_PSHook::defineLuaTypes(state);
+    eCVisualAnimation_PSHook::defineLuaTypes(state);
     eCWrapper_emfx2MotionHook::defineLuaTypes(state);
 }
 

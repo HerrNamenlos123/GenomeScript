@@ -59,13 +59,9 @@ void ScriptMaster::loadScript(const std::string& filename, const std::string& mo
 
     defineLuaTypes(script);
     luabridge::getGlobalNamespace(script.luaState)
-        .beginNamespace("Hook")
-        .addVariable("action", 0)
-        .endNamespace();
-    ExecLuaCode(script, "function ClearPreventDefaultHook() Hook.action = 0 end");
-    ExecLuaCode(script, "function PreventDefaultAsSuccess() Hook.action = 1 end");
-    ExecLuaCode(script, "function PreventDefaultAsFailure() Hook.action = 2 end");
-    ExecLuaCode(script, "function PreventDefaultWithValue() Hook.action = 3 end");
+        .addFunction("PreventDefaultAsSuccess", [this]() { m_hookActionStack.back() = { HookAction::PreventDefaultAsSuccess, {} }; })
+        .addFunction("PreventDefaultAsFailure", [this]() { m_hookActionStack.back() = { HookAction::PreventDefaultAsFailure, {} }; })
+        .addFunction("PreventDefaultWithValue", [this](const luabridge::LuaRef& result) { m_hookActionStack.back() = { HookAction::PreventDefaultWithValue, result }; });
 
     loadLuaFile(script);
     

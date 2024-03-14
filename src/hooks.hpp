@@ -63,26 +63,26 @@ auto constexpr MAX_FUNCTIONCALL_MILLISECONDS = 50;
     else if (hookAction == HookAction::PreventDefaultWithValue) {                                                     \
         if (!result) {                                                                                                \
             log::error("Function {} used PreventDefaultWithValue, but did not return a value",                        \
-                       classname##"_" #funcname);                                                                     \
+                       #classname##"_" #funcname);                                                                     \
         }                                                                                                             \
         else {                                                                                                        \
             if (result->isInstance<returntype>()) {                                                                   \
                 return result->cast<returntype>().value();                                                            \
             }                                                                                                         \
             else {                                                                                                    \
-                log::error("Function {} returned an invalid datatype", classname##"_" #funcname);                     \
+                log::error("Function {} returned an invalid datatype", #classname##"_" #funcname);                     \
             }                                                                                                         \
         }                                                                                                             \
     }
 
 #define HOOK_ACTION_VOID(classname, funcname, ...)                                                                    \
     auto [hookAction, result]                                                                                         \
-        = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, this, __VA_ARGS__);                  \
+        = ScriptMaster::get().callFunctionInAllScripts(#classname##"_" #funcname, this, __VA_ARGS__);                  \
     HOOK_ACTION_RET(classname, funcname, returntype,,);          
 
 #define HOOK_ACTION(classname, funcname, returntype, success, failure, ...)                                           \
     auto [hookAction, result]                                                                                         \
-        = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, this, __VA_ARGS__);                  \
+        = ScriptMaster::get().callFunctionInAllScripts(#classname##"_" #funcname, this, __VA_ARGS__);                  \
     HOOK_ACTION_RET(classname, funcname, returntype, success, failure)                                                \
     HOOK_ACTION_RET_VALUE(classname, funcname, returntype, success, failure);
 
@@ -90,11 +90,11 @@ auto constexpr MAX_FUNCTIONCALL_MILLISECONDS = 50;
     HOOK_ACTION(classname, funcname, bool, true, false, __VA_ARGS__)
 
 #define HOOK_STATIC_ACTION_VOID(classname, funcname, ...)                                                             \
-    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, __VA_ARGS__);  \
+    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(#classname##"_" #funcname, __VA_ARGS__);  \
     HOOK_STATIC_ACTION_RET(classname, funcname, returntype, , );
 
 #define HOOK_STATIC_ACTION(classname, funcname, returntype, success, failure, ...)                                    \
-    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(classname##"_" #funcname, __VA_ARGS__);  \
+    auto [hookAction, result] = ScriptMaster::get().callFunctionInAllScripts(#classname##"_" #funcname, __VA_ARGS__);  \
     HOOK_ACTION_RET(classname, funcname, returntype, success, failure)                                         \
     HOOK_ACTION_RET_VALUE(classname, funcname, returntype, success, failure);
 

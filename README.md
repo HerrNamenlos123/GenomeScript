@@ -32,6 +32,7 @@ end
  - You can call original member functions with `this:TriggerFight()`. `:` is equivalent to C++ `.`
  - You can call static member functions everywhere with `Class.StaticMember()`. `.` is equivalent to C++ `::`
  - Use `PreventDefault*()` to change the default behaviour of a hook (see examples)
+ - Return values of hooks are ignored
  - Loops and arrays start at index 1 (!!!)
 
 Example:
@@ -41,8 +42,8 @@ function Music_TriggerFight(this)   -- Simply define this to get the call ('this
     PreventDefaultSuccess()         -- Call this to return early after the script, without calling the original
     PreventDefaultFailure()         -- The last call across all scripts defines what is done
                                     -- To keep mods as compatible as possible, prevent as little defaults as possible and only add hooks
-    PreventDefaultWithValue()       -- Return early, but with the return value from this hook
-    return this:TriggerVictory()    -- We call another function instead of the default, and return the return value instead
+    result = this:TriggerVictory()  -- We call another function instead of the default, and return the return value instead
+    PreventDefaultWithValue(result) -- Return early, but with the return value from this hook
 end
 ```
 This function would replace the combat music with the victory music. 

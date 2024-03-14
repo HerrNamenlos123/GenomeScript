@@ -20,7 +20,7 @@ end
 function gCScriptProcessingUnit_sAICombatMoveInstr(args, spu, fullstop)
     if args ~= nil then
         if Int(args.Action) == 1 then -- Normal attack
-            args.AniSpeedScale = args.AniSpeedScale * 1.5
+            args.AniSpeedScale = args.AniSpeedScale * 3.5
         end
         if Int(args.Action) == 11 then -- Pierce attack
             args.AniSpeedScale = args.AniSpeedScale * 1.2
@@ -41,12 +41,15 @@ function gCScriptProcessingUnit_sAICombatMoveInstr(args, spu, fullstop)
         --args.AniSpeedScale = args.AniSpeedScale * 2.5
         -- log.info("AICombatMoveInstrHook: " .. Int(args.Action))
     end
-    
-    -- Prevent Default because we don't want to call the original after this script, instead we call
-    -- the original function from here but with modified parameters. That means, instead of this script running and
-    -- then the original running in C++, the script already calls the original and then tells C++ to
-    -- instead of calling it again, returning early with the return value. Makes sense? :/
 
-    PreventDefaultWithValue()
-    return gCScriptProcessingUnit.sAICombatMoveInstr(reinterpret_voidptr(args), spu, fullstop)
+    log.warn("Changed pacing of combat motion")
+    PreventDefaultWithValue(gCScriptProcessingUnit.sAICombatMoveInstr(reinterpret_voidptr(args), spu, fullstop))
+end
+
+function eCVisualAnimation_PS_PlayMotion(this, type, motion)
+    log.info("PlayMotion: " .. this:GetResourceFilePath():GetText())
+end
+
+function eCWrapper_emfx2Motion_LoadMotion(this, file)
+    print("LoadMotion")
 end

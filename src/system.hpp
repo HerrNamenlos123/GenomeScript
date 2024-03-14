@@ -22,6 +22,8 @@ enum class HookAction { None, PreventDefaultAsSuccess, PreventDefaultAsFailure, 
 
 class ScriptMaster {
 public:
+    using HookResult = std::pair<HookAction, std::optional<luabridge::LuaRef>>;
+
     static ScriptMaster& get() {
         static ScriptMaster master;
         return master;
@@ -42,37 +44,16 @@ public:
     bool unloadScript(const std::string& moduleName);
 
     template<typename... TArgs> 
-    std::pair<HookAction, std::optional<luabridge::LuaRef>> callFunctionInAllScripts(const std::string& function, TArgs... args) {
-        //log::trace("Calling lua function {} in all scripts", function);
-        HookAction hookAction = HookAction::None;
-        std::optional<luabridge::LuaRef> result;
+    HookResult callFunctionInAllScripts(const std::string& function, TArgs... args) {
+        // log::trace("Calling lua function {}", function);
+        m_hookActionStack.emplace_back();
         for (auto& script : m_scripts) {
-            ExecLuaCode(script, "ClearPreventDefaultHook()");
-            std::optional<luabridge::LuaRef> luaRef = callLuaFunction(script, function, args...);
-            luabridge::LuaRef hookActionRef = luabridge::getGlobal(script.luaState, "Hook")["action"];
-            if (!hookActionRef.isInstance<int>()) {
-                log::error("The value of HookAction.action is not an int");
-                continue;
-            }
-            switch (hookActionRef.cast<int>().value()) {
-            case HookAction::None:
-                break;
-            case HookAction::PreventDefaultAsSuccess:
-                hookAction = HookAction::PreventDefaultAsSuccess;
-                //log::warn("Script {} raised PreventDefaultAsSuccess in {}", script.moduleName, function);
-                break;
-            case HookAction::PreventDefaultAsFailure:
-                hookAction = HookAction::PreventDefaultAsFailure;
-                //log::warn("Script {} raised PreventDefaultAsFailure in {}", script.moduleName, function);
-                break;
-            case HookAction::PreventDefaultWithValue:
-                hookAction = HookAction::PreventDefaultWithValue;
-                result = luaRef;
-                //log::warn("Script {} raised PreventDefaultWithValue in {}", script.moduleName, function);
-                break;
-            }
+            callLuaFunction(script, function, args...);
         }
-        return { hookAction, result };
+        // log::trace("Calling lua function {} ... Done", function);
+        auto result = m_hookActionStack.back();
+        m_hookActionStack.pop_back();
+        return result;
     }
 
     template <typename... TArgs> 
@@ -111,6 +92,8 @@ private:
     inline static const std::string m_luaOnAttachFunction = "OnAttach";
     inline static const std::string m_luaOnDetachFunction = "OnDetach";
     std::vector<Script> m_scripts;
+
+    std::vector<HookResult> m_hookActionStack;
 };
 
 void updateScriptHotreload();
