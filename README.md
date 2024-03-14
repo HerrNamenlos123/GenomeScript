@@ -6,7 +6,7 @@ This is just an experiment and not for public use yet!
 Build:  
 ```bash
 cmake . -B build
-cmake --build build
+cmake --build build --config=release
 ```
 
 Once the project is built and installed into the Gothic installation directory (hard-coded in CMakeLists.txt),
