@@ -45,4 +45,6 @@ function Music_TriggerFight(this)   -- Simply define this to get the call ('this
     return this:TriggerVictory()    -- We call another function instead of the default, and return the return value instead
 end
 ```
-This function would replace the combat music with the victory music.
+This function would replace the combat music with the victory music. 
+
+You can add more hooks by modifying `hooks.cpp`. The goal is to eventually support all hooks someone would possibly want, so that any mod could at least in theory be written in Lua. Do not forget to call `::detour()` AND `::defineLuaTypes()` at the bottom of the file!!!
