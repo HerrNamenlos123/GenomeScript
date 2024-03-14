@@ -20,7 +20,7 @@ end
 function gCScriptProcessingUnit_sAICombatMoveInstr(args, spu, fullstop)
     if args ~= nil then
         if Int(args.Action) == 1 then -- Normal attack
-            args.AniSpeedScale = args.AniSpeedScale * 3.5
+            args.AniSpeedScale = args.AniSpeedScale * 1.5
         end
         if Int(args.Action) == 11 then -- Pierce attack
             args.AniSpeedScale = args.AniSpeedScale * 1.2
