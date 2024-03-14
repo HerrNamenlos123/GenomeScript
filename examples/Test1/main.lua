@@ -2,14 +2,14 @@ function OnAttach()
     log.info("Hello world")
 end
 
-function eCApplication_Processs(this)
-    -- log.info("ProcessHook")
-    --Music.TriggerExplore()
-    --Music.TriggerSituation(bCString("test"))
-end
+-- function eCApplication_Processs(this)
+--     -- log.info("ProcessHook")
+--     --Music.TriggerExplore()
+--     --Music.TriggerSituation(bCString("test"))
+-- end
 
 function eCApplication_PlayVideo(this, video)
-    log.info("PlayVideoHook: " .. String(video))
+    log.info("PlayVideoHook: " .. video:GetText())
     -- PreventDefaultAsSuccess()
 end
 
@@ -41,6 +41,11 @@ function gCScriptProcessingUnit_sAICombatMoveInstr(args, spu, fullstop)
         --args.AniSpeedScale = args.AniSpeedScale * 2.5
         -- log.info("AICombatMoveInstrHook: " .. Int(args.Action))
     end
+    
+    -- Prevent Default because we don't want to call the original after this script, instead we call
+    -- the original function from here but with modified parameters. That means, instead of this script running and
+    -- then the original running in C++, the script already calls the original and then tells C++ to
+    -- instead of calling it again, returning early with the return value. Makes sense? :/
 
     PreventDefaultWithValue()
     return gCScriptProcessingUnit.sAICombatMoveInstr(reinterpret_voidptr(args), spu, fullstop)

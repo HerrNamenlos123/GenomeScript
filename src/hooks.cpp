@@ -337,7 +337,6 @@ void defineLuaTypes(lua_State* state) {
     DEFINE_LUA_ENUM(gEAction, gEAction_None);
         
     luabridge::getGlobalNamespace(state)
-        .addFunction("String", [](const bCString& str) { return std::string(str.GetText()); })
         .addFunction("String", [](gEAction action) { return std::to_string((int)action); })
         .addFunction("Int", [](gEAction action) { return (int)action; })
         .addFunction("reinterpret_voidptr", [](sAICombatMoveInstr_Args* args) { return reinterpret_cast<GELPVoid>(args); });
