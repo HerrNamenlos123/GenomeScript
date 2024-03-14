@@ -48,3 +48,5 @@ end
 This function would replace the combat music with the victory music. 
 
 You can add more hooks by modifying `hooks.cpp`. The goal is to eventually support all hooks someone would possibly want, so that any mod could at least in theory be written in Lua. Do not forget to call `::detour()` AND `::defineLuaTypes()` at the bottom of the file!!!
+
+To add a hook you will need the full function signature. You can get them directly from Ghidra or another decompiler, or alternatively here: (https://github.com/HerrNamenlos123/G3SDK/tree/main/extra-resources)
