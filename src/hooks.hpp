@@ -69,8 +69,11 @@ auto constexpr MAX_FUNCTIONCALL_MILLISECONDS = 50;
             if (result->isInstance<returntype>()) {                                                                   \
                 return result->cast<returntype>().value();                                                            \
             }                                                                                                         \
+            else if (result->isNil() && std::is_pointer_v<returntype>) {                                                              \
+                return result->cast<returntype>().value();                                                            \
+            }                                                                                                         \
             else {                                                                                                    \
-                log::error("Function {} returned an invalid datatype", #classname##"_" #funcname);                     \
+                log::error("Lua Function {} returned an invalid datatype: The datatype returned in 'PreventDefault...' from the Lua hook does not match the return type of the function: Expected {}", #classname##"_" #funcname, typeid(returntype).name());                \
             }                                                                                                         \
         }                                                                                                             \
     }

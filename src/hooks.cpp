@@ -36,7 +36,7 @@ enum eCWrapper_emfx2Actor::eEMotionType {};
 
 namespace GenomeScript {
 
-class MusicHook {
+class MusicHook : public Music {
 public:
     bool TriggerExplore() {
         HOOK_ACTION_BOOL(Music, TriggerExplore);
@@ -97,7 +97,7 @@ public:
     }
 };
 
-class eCApplicationHook {
+class eCApplicationHook : public eCApplication {
 public:
     bEResult Run() {
         HOOK_ACTION(eCApplication, Run, bEResult, bEResult::bEResult_Ok, bEResult::bEResult_False);
@@ -158,7 +158,7 @@ struct sAICombatMoveInstr_Args {
     }
 };
 
-class gCScriptProcessingUnitHook {
+class gCScriptProcessingUnitHook : public gCScriptProcessingUnit {
 public:
     void AISetState(bCString str) {
         log::info("AISetState");
@@ -175,8 +175,7 @@ public:
     }
 
     static GEBool GE_STDCALL sAICombatMoveInstr(GELPVoid a_pArgs, gCScriptProcessingUnit* a_pSPU, GEBool a_bFullStop) {
-        auto args = reinterpret_cast<sAICombatMoveInstr_Args*>(a_pArgs);
-        HOOK_STATIC_ACTION_BOOL(gCScriptProcessingUnit, sAICombatMoveInstr, args, a_pSPU, a_bFullStop);
+        HOOK_STATIC_ACTION_BOOL(gCScriptProcessingUnit, sAICombatMoveInstr, a_pArgs, a_pSPU, a_bFullStop);
         return sAICombatMoveInstr_Base(a_pArgs, a_pSPU, a_bFullStop);
     }
 
@@ -196,6 +195,8 @@ public:
             .addProperty("Action", &sAICombatMoveInstr_Args::Action)
             .addProperty("PhaseName", &sAICombatMoveInstr_Args::PhaseName)
             .addProperty("AniSpeedScale", &sAICombatMoveInstr_Args::AniSpeedScale)
+            .addStaticFunction("reinterpret_from_voidptr", [](GELPVoid args) { return reinterpret_cast<sAICombatMoveInstr_Args*>(args); })
+            .addStaticFunction("reinterpret_to_voidptr", [](sAICombatMoveInstr_Args* args) { return reinterpret_cast<GELPVoid>(args); })
             .endClass();
 
         luabridge::getGlobalNamespace(state)
@@ -212,7 +213,7 @@ public:
     }
 };
 
-class eCWrapper_emfx2MotionHook {
+class eCWrapper_emfx2MotionHook : public eCWrapper_emfx2Motion {
 public:
     bEResult LoadMotion(eCArchiveFile& file) {
         log::error("LoadMotion");
@@ -234,10 +235,31 @@ public:
     }
 };
 
+class eCWrapper_emfx2ActorHook : public eCWrapper_emfx2Actor {
+public:
+    void PlayMotion(eCWrapper_emfx2Actor::eEMotionType type, eCWrapper_emfx2MotionHook* motion, eCWrapper_emfx2Motion::eSMotionDesc* desc) {
+        HOOK_ACTION_VOID(eCWrapper_emfx2Actor, PlayMotion, type, motion, desc);
+        PlayMotion_Base(type, motion, desc);
+    }
+
+    DETOUR_DECLARE_MEMBER(PlayMotion, "Engine.dll", "?PlayMotion@eCWrapper_emfx2Actor@@QAEXW4eEMotionType@1@AAVeCWrapper_emfx2Motion@@PAUeSMotionDesc@3@@Z");
+
+    static void detour(bool detach) {
+        DETOUR_EXTERN_MEMBER(eCWrapper_emfx2ActorHook, PlayMotion);
+    }
+
+    static void defineLuaTypes(lua_State* state) {
+        luabridge::getGlobalNamespace(state)
+            .beginClass<eCWrapper_emfx2ActorHook>("eCWrapper_emfx2Actor")
+            .addFunction("PlayMotion", &eCWrapper_emfx2ActorHook::PlayMotion_Base<eCWrapper_emfx2Actor::eEMotionType, eCWrapper_emfx2MotionHook*, eCWrapper_emfx2Motion::eSMotionDesc*>)
+            .endClass();
+    }
+};
+
 class eCVisualAnimation_PSHook : public eCVisualAnimation_PS {
 public:
     void PlayMotion(eCWrapper_emfx2Actor::eEMotionType type, eCWrapper_emfx2Motion::eSMotionDesc* motion) {
-        HOOK_ACTION_VOID(eCVisualAnimation_PS, PlayMotion);
+        HOOK_ACTION_VOID(eCVisualAnimation_PS, PlayMotion, type, motion);
         PlayMotion_Base(type, motion);
     }
 
@@ -250,10 +272,13 @@ public:
     static void defineLuaTypes(lua_State* state) {
         luabridge::getGlobalNamespace(state)
             .beginClass<eCWrapper_emfx2Actor::eEMotionType>("eEMotionType")
+            .addStaticFunction("to_int", [](const eCWrapper_emfx2Actor::eEMotionType& motion) { return static_cast<int>(motion); })
+            .addStaticFunction("from_int", [](int motion) { return static_cast<eCWrapper_emfx2Actor::eEMotionType>(motion); })
             .endClass();
         luabridge::getGlobalNamespace(state)
             .beginClass<eCWrapper_emfx2Motion::eSMotionDesc>("eSMotionDesc")
             //.addFunction("GetMotionFilename", &eCWrapper_emfx2Motion::eSMotionDesc::GetMotionFilename)
+            .addStaticFunction("to_str", [](eCWrapper_emfx2Motion::eSMotionDesc* desc) { return reinterpret_cast<bCString*>(desc); })
             .endClass();
 
         luabridge::getGlobalNamespace(state)
@@ -264,13 +289,46 @@ public:
     }
 };
 
+class eCAnimationAdminHook : public eCAnimationAdmin {
+public:
+    eCResourceDataEntity* QueryMotionDataEntity(bCString const & filename, eEResourceCacheBehavior resbehavior) {
+        HOOK_ACTION(eCAnimationAdmin, QueryMotionDataEntity, eCResourceDataEntity*, nullptr, nullptr, filename, resbehavior);
+        return QueryMotionDataEntity_Base(filename, resbehavior);
+    }
+
+    DETOUR_DECLARE_MEMBER(QueryMotionDataEntity, "Engine.dll", "?QueryMotionDataEntity@eCAnimationAdmin@@QAEPAVeCResourceDataEntity@@ABVbCString@@W4eEResourceCacheBehavior@@@Z");
+
+    static void detour(bool detach) {
+        DETOUR_EXTERN_MEMBER(eCAnimationAdminHook, QueryMotionDataEntity);
+    }
+
+    static void defineLuaTypes(lua_State* state) {
+        luabridge::getGlobalNamespace(state)
+            .beginClass<eEResourceCacheBehavior>("eEResourceCacheBehavior")
+            .addStaticFunction("to_int", [](const eEResourceCacheBehavior& motion) { return static_cast<int>(motion); })
+            .addStaticFunction("from_int", [](int motion) { return static_cast<eEResourceCacheBehavior>(motion); })
+            .endClass();
+        luabridge::getGlobalNamespace(state)
+            .beginClass<eCResourceDataEntity>("eCResourceDataEntity")
+            .addStaticFunction("reinterpret_from_voidptr", [](GELPVoid args) { return reinterpret_cast<eCResourceDataEntity *>(args); })
+            .addStaticFunction("reinterpret_to_voidptr", [](eCResourceDataEntity* args) { return reinterpret_cast<GELPVoid>(args); })
+            .endClass();
+        luabridge::getGlobalNamespace(state)
+            .beginClass<eCAnimationAdminHook>("eCAnimationAdmin")
+            .addFunction("QueryMotionDataEntity", &eCAnimationAdminHook::QueryMotionDataEntity_Base<bCString const &, eEResourceCacheBehavior>)
+            .endClass();
+    }
+};
+
 void detour(bool detach) {
 
     MusicHook::detour(detach);
     eCApplicationHook::detour(detach);
     gCScriptProcessingUnitHook::detour(detach);
     eCVisualAnimation_PSHook::detour(detach);
+    eCWrapper_emfx2ActorHook::detour(detach);
     eCWrapper_emfx2MotionHook::detour(detach);
+    eCAnimationAdminHook::detour(detach);
 
     // DETOUR_EXTERN_MEMBER(eCVisualAnimationLoD, Read, "Engine.dll", "?Read@eCVisualAnimationLoD@@UAE?AW4bEResult@@AAVbCIStream@@@Z"); 
     // DETOUR_EXTERN_MEMBER(eCVisualAnimation_PS, Read, "Engine.dll", "?Read@eCVisualAnimation_PS@@UAE?AW4bEResult@@AAVbCIStream@@@Z");
@@ -331,14 +389,15 @@ void defineLuaTypes(lua_State* state) {
         
     luabridge::getGlobalNamespace(state)
         .addFunction("String", [](gEAction action) { return std::to_string((int)action); })
-        .addFunction("Int", [](gEAction action) { return (int)action; })
-        .addFunction("reinterpret_voidptr", [](sAICombatMoveInstr_Args* args) { return reinterpret_cast<GELPVoid>(args); });
+        .addFunction("Int", [](gEAction action) { return (int)action; });
 
     MusicHook::defineLuaTypes(state);
     eCApplicationHook::defineLuaTypes(state);
     gCScriptProcessingUnitHook::defineLuaTypes(state);
     eCVisualAnimation_PSHook::defineLuaTypes(state);
+    eCWrapper_emfx2ActorHook::defineLuaTypes(state);
     eCWrapper_emfx2MotionHook::defineLuaTypes(state);
+    eCAnimationAdminHook::defineLuaTypes(state);
 }
 
 } // namespace GenomeScript
